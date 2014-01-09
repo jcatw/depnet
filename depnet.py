@@ -8,7 +8,7 @@ class depnet:
         self._col_indices = range(self.n_features)
 
     def _get_x(self, k):
-        return self.X[:,filter(k,self._col_indices)]
+        return self.X[:,filter(lambda z: z != k, self._col_indices)]
     def _get_y(self, k):
         return self.X[:,k]
 
