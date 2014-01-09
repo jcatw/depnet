@@ -1,3 +1,4 @@
+import pdb
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 
@@ -20,19 +21,21 @@ class depnet:
             self.conditional_models.append(model)
 
     def sample(self, n_samples, burn_in=100, burn_interval=5):
-        samples = np.zeros(n_samples, self.n_features)
+        samples = np.zeros((n_samples, self.n_features))
         
         # n_features binary random draws
         state = np.random.randint(0, 2, self.n_features)  
         
         for i in xrange(burn_in):
             for k in xrange(self.n_features):
-                state[k] = predict(self._get_x(k))
+                conditioned_state = state[filter(lambda z: z != k, self._col_indices)]
+                state[k] = self.conditional_models[k].predict(conditioned_state)
 
         for i in xrange(n_samples):
             for j in xrange(burn_interval):
                 for k in xrange(self.n_features):
-                    state[k] = predict(self._get_x(k))
+                    conditioned_state = state[filter(lambda z: z != k, self._col_indices)]
+                    state[k] = self.conditional_models[k].predict(conditioned_state)
             samples[i] = state
 
         return samples
