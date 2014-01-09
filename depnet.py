@@ -5,7 +5,7 @@ class depnet:
     def __init__(self, X):
         self.X = X
         self.n_instances, self.n_features = self.X.shape
-        self._col_indices = range(n_features)
+        self._col_indices = range(self.n_features)
 
     def _get_x(self, k):
         return self.X[:,filter(k,self._col_indices)]
