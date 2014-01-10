@@ -11,10 +11,11 @@ def dn_fit_parallel(dn, n_proc):
     # map dn_fit_parallel_worker over (dn, k) pairs
     # this is ugly but gets around the restriction that Pool.map funcs
     # be callable from the top of the module
-    return pool.map(dn_fit_parallel_worker, 
-                    itertools.izip((dn for x in xrange(dn.n_features)),
-                                   xrange(dn.n_features)))
-
+    cons = itertools.izip((dn for x in xrange(dn.n_features)),xrange(dn.n_features))
+    conditional_models = pool.map(dn_fit_parallel_worker, cons)
+    pool.close()
+    return conditional_models
+                    
 def dn_fit_parallel_worker(cons):
     dn, k = cons
     model = LogisticRegression(penalty="l1")
@@ -39,12 +40,11 @@ class depnet:
             model.fit(self._get_x(k), self._get_y(k))
 
     def fit_parallel(self, n_proc = 4):
-        pool = mp.Pool(processes = n_proc)
-        #self.conditional_models = pool.map(self._fit_one, xrange(self.n_features))
-        def fit_a_model(k):
-            return fit_one(self,k)
         self.conditional_models = dn_fit_parallel(self, n_proc)
-        
+
+    def _next_state(self, state, k):
+        conditioned_state = state[filter(lambda z: z != k, self._col_indices)]
+        return self.conditional_models[k].predict(conditioned_state)
 
     def sample(self, n_samples, burn_in=100, burn_interval=5):
         samples = np.zeros((n_samples, self.n_features))
@@ -54,14 +54,16 @@ class depnet:
         
         for i in xrange(burn_in):
             for k in xrange(self.n_features):
-                conditioned_state = state[filter(lambda z: z != k, self._col_indices)]
-                state[k] = self.conditional_models[k].predict(conditioned_state)
+                #conditioned_state = state[filter(lambda z: z != k, self._col_indices)]
+                #state[k] = self.conditional_models[k].predict(conditioned_state)
+                state[k] = self._next_state(state,k)
 
         for i in xrange(n_samples):
             for j in xrange(burn_interval):
                 for k in xrange(self.n_features):
-                    conditioned_state = state[filter(lambda z: z != k, self._col_indices)]
-                    state[k] = self.conditional_models[k].predict(conditioned_state)
+                    #conditioned_state = state[filter(lambda z: z != k, self._col_indices)]
+                    #state[k] = self.conditional_models[k].predict(conditioned_state)
+                    state[k] = self._next_state(state,k)
             samples[i] = state
 
         return samples
