@@ -22,6 +22,25 @@ def dn_fit_parallel_worker(cons):
     model.fit(dn._get_x(k), dn._get_y(k))
     return model
 
+def dn_sample_parallel(dn, n_samples, n_chains, burn_in, burn_interval):
+    pool = mp.Pool(processes = n_chains)  # one processor per chain
+    samples_per_chain = np.zeros(n_chains, dtype="int64")
+    for i in xrange(n_samples):
+        samples_per_chain[i % n_chains] += 1
+    cons = itertools.izip((dn for x in xrange(n_chains)),
+                          samples_per_chain,
+                          (burn_in for x in xrange(n_chains)),
+                          (burn_interval for x in xrange(n_chains)))
+    samples = pool.map(dn_sample_parallel_worker, cons)
+    pool.close()
+    samples = np.array( samples )
+    samples = samples.reshape(n_samples, dn.n_features)
+    return samples
+
+def dn_sample_parallel_worker(cons):
+    dn, n_samples_chain, burn_in, burn_interval = cons
+    return dn.sample(n_samples_chain, burn_in, burn_interval)
+    
 class depnet:
     def __init__(self, X):
         self.X = X
@@ -67,6 +86,9 @@ class depnet:
             samples[i] = state
 
         return samples
+
+    def sample_parallel(self, n_samples, n_chains, burn_in=100, burn_interval=5):
+        return dn_sample_parallel(self, n_samples, n_chains, burn_in, burn_interval)
 
     def dependency_net(self):
         adjacency_matrix = np.zeros((self.n_features,self.n_features))
