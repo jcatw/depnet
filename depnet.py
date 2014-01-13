@@ -31,10 +31,13 @@ def dn_sample_parallel(dn, n_samples, n_chains, burn_in, burn_interval):
                           samples_per_chain,
                           (burn_in for x in xrange(n_chains)),
                           (burn_interval for x in xrange(n_chains)))
-    samples = pool.map(dn_sample_parallel_worker, cons)
+    chain_samples = pool.map(dn_sample_parallel_worker, cons)
     pool.close()
-    samples = np.array( samples )
-    samples = samples.reshape(n_samples, dn.n_features)
+    samples = np.zeros((n_samples, dn.n_features))
+    i = 0
+    for n_chain_samples, chain_sample in itertools.izip(samples_per_chain, chain_samples):
+        samples[i:(i+n_chain_samples),:] = chain_sample
+        i += n_chain_samples
     return samples
 
 def dn_sample_parallel_worker(cons):
